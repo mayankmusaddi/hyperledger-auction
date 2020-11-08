@@ -19,27 +19,12 @@ type Asset struct {
 }
 	// Org      string `json:"org"`
 
-// InitLedger adds a base set of assets to the ledger
-func (s *SmartContract) initAuction(ctx contractapi.TransactionContextInterface) error {
-	// get org of submitting client
-	// clientOrgID, err := ctx.GetClientIdentity().GetMSPID()
-	// if err != nil {
-	// 	return fmt.Errorf("failed to get client identity %v", err)
-	// }
-
+// // InitLedger adds a base set of assets to the ledger
+func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) error {
 	assets := []Asset{
-		{
-			ID: "org1",
-			Price: 0, 
-		},
-		{
-			ID: "org2",
-			Price: 0, 
-		},
-		{
-			ID: "org3",
-			Price: 0, 
-		},
+		{ ID: "org1", Price: 0,},
+		{ ID: "org2", Price: 0,},
+		{ ID: "org3", Price: 0,},
 	}
 
 	for _, asset := range assets {
@@ -57,8 +42,66 @@ func (s *SmartContract) initAuction(ctx contractapi.TransactionContextInterface)
 	return nil
 }
 
+// GetAllAssets returns all assets found in world state
+func (s *SmartContract) GetAllAssets(ctx contractapi.TransactionContextInterface) ([]*Asset, error) {
+	// range query with empty string for startKey and endKey does an
+	// open-ended query of all assets in the chaincode namespace.
+	resultsIterator, err := ctx.GetStub().GetStateByRange("", "")
+	if err != nil {
+		return nil, err
+	}
+	defer resultsIterator.Close()
+
+	var assets []*Asset
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next()
+		if err != nil {
+			return nil, err
+		}
+
+		var asset Asset
+		err = json.Unmarshal(queryResponse.Value, &asset)
+		if err != nil {
+			return nil, err
+		}
+		assets = append(assets, &asset)
+	}
+
+	return assets, nil
+}
+
+// InitLedger adds a base set of assets to the ledger
+func (s *SmartContract) InitAuction(ctx contractapi.TransactionContextInterface) error {
+	// get org of submitting client
+	// clientOrgID, err := ctx.GetClientIdentity().GetMSPID()
+	// if err != nil {
+	// 	return fmt.Errorf("failed to get client identity %v", err)
+	// }
+
+	assets := []Asset{
+		{ ID: "org1", Price: 0,},
+		{ ID: "org2", Price: 0,},
+		{ ID: "org3", Price: 0,},
+	}
+
+	for _, asset := range assets {
+		assetJSON, err := json.Marshal(asset)
+		if err != nil {
+			return err
+		}
+
+		err = ctx.GetStub().PutState(asset.ID, assetJSON)
+		if err != nil {
+			return fmt.Errorf("failed to put to world state. %v", err)
+		}
+	}
+
+	return nil
+}
+
+
 // CreateAsset issues a new asset to the world state with given details.
-func (s *SmartContract) submitBid(ctx contractapi.TransactionContextInterface, id string, price int) error {
+func (s *SmartContract) SubmitBid(ctx contractapi.TransactionContextInterface, id string, price int) error {
 
 	// get org of submitting client
 	// clientOrgID, err := ctx.GetClientIdentity().GetMSPID()
@@ -84,7 +127,7 @@ func (s *SmartContract) submitBid(ctx contractapi.TransactionContextInterface, i
 }
 
 // GetAllAssets returns all assets found in world state
-func (s *SmartContract) declareWinner(ctx contractapi.TransactionContextInterface) (string, error) {
+func (s *SmartContract) DeclareWinner(ctx contractapi.TransactionContextInterface) (string, error) {
 
 	// get the MSP ID of the bidder's org
 	// clientOrgID, err := ctx.GetClientIdentity().GetMSPID()
